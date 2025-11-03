@@ -1,5 +1,8 @@
 ﻿-- Copyright (C) 2021 Swamp Servers. https://github.com/swampservers/fatkid
 -- Use is subject to a restrictive license, please see: https://github.com/swampservers/fatkid/blob/master/LICENSE
+AddCSLuaFile("sh_characters.lua")
+include("sh_characters.lua")
+
 GM.AZCount = 1 --How many players start as zombies
 GM.EndIfNoHumans = true
 GM.EndIfNoZombies = true
@@ -50,7 +53,6 @@ GM.AZ.FallDamageMultiplier = 1
 GM.AZ.Speed = 50 --Changes, see below
 GM.AZ.CrouchSpeedMod = 0.6
 GM.AZ.JumpPower = 180
-GM.AZ.SpawnWeapon = "weapon_fatkid"
 GM.AZ.CanPickupWeapons = false
 GM.AZ.ReceiveAmmo = false
 
@@ -178,20 +180,29 @@ hook.Add("Clock", "Fatkid_Balancing", function()
     local progress = 1 - RoundTimer / GAMEMODE.RoundDuration
     GAMEMODE.BarricadeDamageMod = 2.0 / math.max(humans, 3) + 0.08
     GAMEMODE.AZ.TakeDamageScale = (GAMEMODE.FatKidDamageMod or 1) * (0.55 / math.max(humans, 3) + 0.09)
-    GAMEMODE.AZ.Speed = Lerp(progress, GAMEMODE.AZ.StartSpeed, GAMEMODE.AZ.EndSpeed)
     GAMEMODE.Zombie.Speed = Lerp(progress, GAMEMODE.Zombie.StartSpeed, GAMEMODE.Zombie.EndSpeed)
 
     for k, v in player.Iterator() do
-        if v:Team() == TEAM_AZ then
-            v:SetRunSpeed(GAMEMODE.AZ.Speed)
-            v:SetWalkSpeed(GAMEMODE.AZ.Speed)
+        if v:Team() == TEAM_AZ and v.FatKidCharacter then
+            local startSpeed = v.FatKidCharacter.startSpeed or GAMEMODE.AZ.StartSpeed
+            local endSpeed = v.FatKidCharacter.endSpeed or GAMEMODE.AZ.EndSpeed
+            local currentSpeed = Lerp(progress, startSpeed, endSpeed)
+            v:SetRunSpeed(currentSpeed)
+            v:SetWalkSpeed(currentSpeed)
         end
 
         if v:Team() == TEAM_ZOMBIE then
-            v:SetRunSpeed(GAMEMODE.Zombie.Speed)
-            v:SetWalkSpeed(GAMEMODE.Zombie.Speed)
+            local currentSpeed = Lerp(progress, GAMEMODE.Zombie.StartSpeed, GAMEMODE.Zombie.EndSpeed)
+            v:SetRunSpeed(currentSpeed)
+            v:SetWalkSpeed(currentSpeed)
         end
     end
+end)
+
+hook.Add("PlayerCanPickupWeapon", "Fatkid_AllowSpawnWeapons", function(ply, weapon)
+    -- Allow initial weapon gives but prevent pickups
+    if ply.InitialWeaponGive then return true end
+    return GAMEMODE:SelectPlayerConfig(ply).CanPickupWeapons
 end)
 
 function GM:PlayerCanHearPlayersVoice(listener, talker)
@@ -208,6 +219,25 @@ function GM:PlayerSpawn(ply)
     ply:ResetHull()
     ply:SetBloodColor(BLOOD_COLOR_RED)
     ply:SetCanWalk(ply:Team() ~= TEAM_AZ) -- Walk mode is faster than the fat kid
+
+    if ply:Team() == TEAM_AZ then
+        local character = self:GetRandomFatKidCharacter()
+        print("[FatKid Debug] Selected character:", character.name)
+        ply:SetModel(character.model)
+        ply:SetModelScale(character.scale)
+        ply:StripWeapons()
+        ply:RemoveAllAmmo()
+        ply.InitialWeaponGive = true
+        ply:Give(character.swep)
+        ply.InitialWeaponGive = false
+        ply.FatKidCharacter = character
+
+        if character.spawnsound then
+            ply:EmitSound(character.spawnsound, 110, 100, 1)
+        end
+        
+        PrintMessage(HUD_PRINTTALK, ply:Nick() .. " is " .. character.name)
+    end
 
     if ply:Team() == TEAM_ZOMBIE then
         -- Skeletons crouch lower to enter tunnels (old solution; new solution is func_skeletonpass)

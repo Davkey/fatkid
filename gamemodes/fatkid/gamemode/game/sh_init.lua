@@ -30,3 +30,7 @@ function GM:ShouldCollide(ent1, ent2)
 
     return true
 end
+
+function GM:GetRandomFatKidCharacter()
+    return table.Random(self.FatKidCharacters)
+end

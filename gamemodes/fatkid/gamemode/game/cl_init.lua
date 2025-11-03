@@ -37,7 +37,7 @@ hook.Add("HUDPaint", "FatKidTip", function()
 end)
 
 --Give third person view to fat kid
-hook.Add("CalcView", "FatKid_Thirdperson", function(ply, pos, angles, fov)
+--[[hook.Add("CalcView", "FatKid_Thirdperson", function(ply, pos, angles, fov)
     if IsValid(LocalPlayer():GetActiveWeapon()) and LocalPlayer():GetActiveWeapon():GetClass() == "weapon_fatkid" then
         local dist = 60
 
@@ -65,4 +65,4 @@ end)
 
 hook.Add("ShouldDrawLocalPlayer", "FatKid_DrawThirdPerson", function(ply)
     if IsValid(LocalPlayer():GetActiveWeapon()) and LocalPlayer():GetActiveWeapon():GetClass() == "weapon_fatkid" then return true end
-end)
+end)--]]
